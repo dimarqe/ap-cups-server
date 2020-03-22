@@ -1,0 +1,25 @@
+{
+  "name": "mernstack",
+  "version": "1.0.0",
+  "description": "mern stack app",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Dimitri Russell",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "1.19.0",
+    "express": "4.17.1",
+    "express-fileupload": "1.1.6",
+    "gridfs-stream": "1.1.1",
+    "method-override": "3.0.0",
+    "mongodb": "3.5.4",
+    "mongoose": "5.9.1",
+    "multer": "1.4.2",
+    "multer-gridfs-storage": "4.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "2.0.2"
+  }
+}
