@@ -19,7 +19,7 @@ const conn = mongoose.connect(mongoURI, {useNewUrlParser: true, useUnifiedTopolo
 });
 
 //sets port to run on, used environment variable if deployed to platforms like heroku
-const port = process.env.port || 3000;
+const port = process.env.PORT || 3000;
 
 //initialize app
 const app = express();
@@ -27,7 +27,8 @@ const app = express();
 app.use(express.json());    
 
 //Use variable when connecting to route
-app.use('/'+dbName,apiRoute);
+//app.use('/'+dbName,apiRoute);
+app
 
 
 //starts server
