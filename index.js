@@ -29,7 +29,7 @@ app.use(express.json());
 //Use variable when connecting to route
 //app.use('/'+dbName,apiRoute);
 app.get('/', (req, res) => {
-    res.status(200).send('Connected...');
+    res.status(200).send('Code hot yute');
 });
 
 
