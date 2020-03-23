@@ -82,6 +82,31 @@ router.get('/', (req, res) => {
 
 /*****RETURN REQUESTS ******/
 
+//searches for menu item by text, american sign language equivalent or audio
+router.get('/search_items/:field', getFile.single('file'), (req, res)=>{
+    let searchBy = req.params.field;
+
+    if(searchBy == 'item_name'){
+        let itemName = req.body.item_name;
+        
+        let query = {item_name : itemName};
+
+        menuItemModel.findOne(query, (err, item)=>{
+            if(err){
+                res.status(400).send('Item not found');
+            }
+            else{
+                item.item_photo = undefined;
+                item.asl_photo = undefined;
+                item.item_audio = undefined;
+                item.__v = undefined;
+
+                res.status(200).json(item);
+            }
+        });
+    }
+});
+
 //returns all menu items
 router.get('/list_items', (req, res) => {
     //fields to be omitted from found objects
@@ -107,7 +132,6 @@ router.get('/list_items', (req, res) => {
 //to get menu item image use route '/menu_item/<item object id>/item_photo'
 //to get menu item sign language representation use route '/menu_item/<item object id>/asl_photo'
 //to get menu item audio use route '/menu_item/<item object id>/item_audio'
-
 router.get('/menu_item/:id/:field', (req, res) => {
     let field = req.params.field;
 
@@ -252,7 +276,7 @@ router.post('/add_menu_item', menuItemUpload, (req, res) => {
             if (req.files['item_audio'] && req.files['item_audio'].length != 0)
                 gfs.remove({ _id: req.files['item_audio'][0].id, root: 'uploads' });
 
-            res.status(400).send('Invalid user input');
+            res.status(400).send('Invalid user input/ item name in use');
         }
         else {
             //omits fields from object sent back to client

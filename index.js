@@ -5,8 +5,6 @@ const apiRoute = require('./routes/api');
 //database URI
 const mongoURI = require('./config/keys.js').mongoURI;
 
-const dbName = 'testdb';
-
 //connection to mongoDB
 mongoose.set('useCreateIndex', true);
 const conn = mongoose.connect(mongoURI, {useNewUrlParser: true, useUnifiedTopology: true}, (err)=>{
