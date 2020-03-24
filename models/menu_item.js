@@ -5,8 +5,7 @@ const MenuItemSchema = new mongoose.Schema({
     item_name:{
         type: String,
         required: true,
-        unique: true,
-        maxlength: 20
+        unique: true
     },
     category:{
         type:String,

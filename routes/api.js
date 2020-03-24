@@ -83,19 +83,22 @@ router.get('/', (req, res) => {
 /*****RETURN REQUESTS ******/
 
 //searches for menu item by text, american sign language equivalent or audio
-router.get('/search_items/:field', getFile.single('file'), (req, res)=>{
+router.get('/search_items/:field', getFile.single('file'), (req, res) => {
     let searchBy = req.params.field;
 
-    if(searchBy == 'item_name'){
+    if (searchBy == 'item_name') {
         let itemName = req.body.item_name;
-        
-        let query = {item_name : itemName};
 
-        menuItemModel.findOne(query, (err, item)=>{
-            if(err){
-                res.status(400).send('Item not found');
+        let query = { item_name: itemName };
+
+        menuItemModel.findOne(query, (err, item) => {
+            if (err) {
+                res.status(500).send('Unexpected server error');
             }
-            else{
+            else if(!item){
+                res.status(404).json('No item found');
+            }
+            else {
                 item.item_photo = undefined;
                 item.asl_photo = undefined;
                 item.item_audio = undefined;
@@ -104,6 +107,35 @@ router.get('/search_items/:field', getFile.single('file'), (req, res)=>{
                 res.status(200).json(item);
             }
         });
+    }
+    else if (searchBy == 'asl_photo' || searchBy == 'item_audio') {
+        if (!req.file) {
+            return res.status(400).send('No file input found');
+        }
+        else {
+            fileHash = crypto.createHash('md5').update(req.file.buffer).digest('hex');
+
+            gfs.files.findOne({md5:fileHash}, (err, file)=>{
+                if (err)
+                    return res.status(500).send('Unexpected server error');
+
+                else if (!file || file.length == 0) {
+                    return res.status(404).send('No file found');
+                }
+                else {
+                    menuItemModel.findOne({[searchBy] : file._id}, (err, item)=>{
+                        if (err)
+                            return res.status(500).send('Unexpected server error');
+                        else if (!item) {
+                            return res.status(404).send('No item found');
+                        }
+                        else {
+                            res.status(200).json(item);
+                        }
+                    });
+                }
+            });            
+        }
     }
 });
 
@@ -207,8 +239,9 @@ router.post('/add_customer', upload.single('file'), (req, res) => {
 
         //Replaces post-validation hook for mongoose db schema
         //stops execution if user is missing password
-        if (!req.body.password)
+        if (!req.body.password) {
             return res.status(400).send('Required field missing');
+        }
     }
     else {
         newCustomer.digital_id = req.file.id;
@@ -218,7 +251,8 @@ router.post('/add_customer', upload.single('file'), (req, res) => {
     newCustomer.save((err) => {
         if (err) {
             //removes uploaded file from database if error encountered while saving record
-            gfs.remove({ _id: req.file.id, root: 'uploads' });
+            if (req.file)
+                gfs.remove({ _id: req.file.id, root: 'uploads' });
 
             res.status(400).send('Email address already in use / Required field missing');
         }
@@ -235,18 +269,16 @@ var menuItemUpload = upload.fields([{ name: 'item_image', maxCount: 1 },
 //adds a menu item
 router.post('/add_menu_item', menuItemUpload, (req, res) => {
     //checks if client request has all necessary data
-    if (!req.files['item_image'] || !req.files['sign_language'] || !req.files['item_audio'] ||
-        req.files['item_image'].length == 0 || req.files['sign_language'].length == 0 ||
-        req.files['item_audio'].length == 0) {
+    if (!req.files['item_image'] || !req.files['sign_language'] || !req.files['item_audio']) {
 
         //removes files uploaded from this request if necessary data is missing
-        if (req.files['item_image'] && req.files['item_image'].length != 0)
+        if (req.files['item_image'])
             gfs.remove({ _id: req.files['item_image'][0].id, root: 'uploads' });
 
-        if (req.files['sign_language'] && req.files['sign_language'].length != 0)
+        if (req.files['sign_language'])
             gfs.remove({ _id: req.files['sign_language'][0].id, root: 'uploads' });
 
-        if (req.files['item_audio'] && req.files['item_audio'].length != 0)
+        if (req.files['item_audio'])
             gfs.remove({ _id: req.files['item_audio'][0].id, root: 'uploads' });
 
         return res.status(400).send('Invalid user input');
@@ -276,7 +308,7 @@ router.post('/add_menu_item', menuItemUpload, (req, res) => {
             if (req.files['item_audio'] && req.files['item_audio'].length != 0)
                 gfs.remove({ _id: req.files['item_audio'][0].id, root: 'uploads' });
 
-            res.status(400).send('Invalid user input/ item name in use');
+            res.status(400).send('Invalid user input');
         }
         else {
             //omits fields from object sent back to client
