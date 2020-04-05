@@ -26,7 +26,7 @@ const mongoURI = require('../config/keys.js').mongoURI;
 const managerModel = require('../models/manager.js');
 const customerModel = require('../models/customer.js');
 const menuItemModel = require('../models/menu_item.js');
-const order = require('../models/order.js');
+const orderModel = require('../models/order.js');
 
 
 //Middleware
@@ -95,7 +95,7 @@ router.get('/search_items/:field', getFile.single('file'), (req, res) => {
             if (err) {
                 res.status(500).send('Unexpected server error');
             }
-            else if(!item){
+            else if (!item) {
                 res.status(404).json('No item found');
             }
             else {
@@ -115,7 +115,7 @@ router.get('/search_items/:field', getFile.single('file'), (req, res) => {
         else {
             fileHash = crypto.createHash('md5').update(req.file.buffer).digest('hex');
 
-            gfs.files.findOne({md5:fileHash}, (err, file)=>{
+            gfs.files.findOne({ md5: fileHash }, (err, file) => {
                 if (err)
                     return res.status(500).send('Unexpected server error');
 
@@ -123,7 +123,7 @@ router.get('/search_items/:field', getFile.single('file'), (req, res) => {
                     return res.status(404).send('No file found');
                 }
                 else {
-                    menuItemModel.findOne({[searchBy] : file._id}, (err, item)=>{
+                    menuItemModel.findOne({ [searchBy]: file._id }, (err, item) => {
                         if (err)
                             return res.status(500).send('Unexpected server error');
                         else if (!item) {
@@ -134,7 +134,7 @@ router.get('/search_items/:field', getFile.single('file'), (req, res) => {
                         }
                     });
                 }
-            });            
+            });
         }
     }
 });
@@ -321,6 +321,131 @@ router.post('/add_menu_item', menuItemUpload, (req, res) => {
         }
     });
 });
+
+//adds order after validating customer
+router.post('/confirm_order/:email_address', upload.single('file'), (req, res) => {
+    let email = req.params.email_address;
+
+    let numberOfItems = req.body.number_of_items;
+    var itemId = new Array();
+    var amountSold = new Array();
+
+    for(i=0; i<numberOfItems; i++){
+        itemId.push(req.body.item_id[i]);
+        amountSold.push(req.body.quantity[i]);
+    }
+
+    if(!numberOfItems || !itemId || !amountSold || 
+        itemId.length <= numberOfItems || amountSold <= numberOfItems){
+            return res.status(400).send('Invalid user input');
+    }
+
+    if (!req.file || req.file.length == 0) {
+        let password = req.body.password;
+
+        var query = { email_address: email, password: password };
+
+        //searches for customer record based on query
+        customerModel.findOne(query, (err, customer) => {
+            if (err) {
+                return res.status(500).send('Unexpected server error');
+            }
+            else if (!customer) {
+                return res.status(404).send('Failed to verify customer');
+            }
+            else {
+                res.status(200).send('Customer successfully validated');
+            }
+        });
+    }
+    else {
+        var query = { email_address: email };
+
+        //searches for customer record based on query
+        customerModel.findOne(query, (err, customer) => {
+            if (err) {
+                return res.status(500).send('Unexpected error');
+            }
+            else if (!customer) {
+                return res.status(404).send('Incorrect login credentials');
+            }
+            else {
+                //if record matching query is found then an object id is created based on digital id field
+                let fileId = new mongo.ObjectID(customer.digital_id);
+
+                //uses above fileId to search file database collection 
+                gfs.files.findOne({ _id: fileId }, (err, file) => {
+                    if (err)
+                        return res.status(500).send('Unexpected server error');
+
+                    else if (!file || file.length == 0) {
+                        return res.status(404).send('Customer ID not found');
+                    }
+
+                    else {
+                        //md5 hash of file uploaded by client is generated for comparison
+                        fileHash = crypto.createHash('md5').update(req.file.buffer).digest('hex');
+
+                        //checks if hash of file uploaded by client is the same as file object found from query
+                        if (file.md5 == fileHash) {
+                            res.status(200).send('Customer successfully validated');
+                        }
+                        else
+                            return res.status(404).send('Failed to verify customer');
+                    }
+                });
+            }
+        });
+    }
+
+    //saves order made
+    saveOrder(itemId, amountSold, numberOfItems);
+});
+//use next() and save variables to local.res or something / just return status to main router
+function saveOrder(idArr, amountArr, n){
+    for(i=0; i<n; i++){
+        let itemId = idArr[i];
+        
+        menuItemModel.findById(itemId, (err, foundItem)=>{
+            if(err){
+                res.status(500).send('Unexpected server error');
+            }
+            else if(!foundItem){
+                res.status(404).send('Item on order does not exist');
+            }
+            else {
+                orderModel.exists({item_id : itemId}, (err, exists)=>{
+                    if(err){
+                        res.status(500).send('Unexpected server error');
+                    }
+                    else if(exists == true){
+                        //*************EDIT************/
+                        orderModel.findOneAndUpdate({item_id: itemId}, (err)=>{
+
+                        });
+                    }
+                    else{
+                        let newOrder = new orderModel();
+                        
+                        newOrder.item_id = itemId;
+                        newOrder.quantity_sold = amountArr[i];
+                        newOrder.total_sales = foundItem.cost * amountArr[i];
+
+                        newOrder.save((err)=>{
+                            if(err){
+                                res.status(404).send('Failed to save order');
+                            }
+                            else{
+                                res.status(200).send('Successfully added order');
+                            }
+                        });
+                    }
+                });
+            }
+            
+        });
+    }
+}
 
 /*****VALIDATION REQUESTS ******/
 
