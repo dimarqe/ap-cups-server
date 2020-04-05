@@ -1,7 +1,6 @@
 # ap-cups-server
 
-The above is a restful api being done for an ongoing project. It was originally being worked on from gitlab
-but the repo was copied over to github for ease of deployment to the hosting platform, heroku.
+The above is a restful api being done for an ongoing project.
 
 
 Below is a general description of the project and its requirements
